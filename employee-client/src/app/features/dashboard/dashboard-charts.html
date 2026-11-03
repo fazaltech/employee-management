@@ -1,0 +1,17 @@
+    <div class="charts-grid">
+      <section class="card attendance-chart"><div class="card-heading"><div><h2>Attendance overview</h2><p>Recorded attendance over the last 7 UTC days</p></div><span class="subtle-chip">Last 7 days</span></div>
+        <div class="chart-legend"><span><i class="present"></i>Present</span><span><i class="absent"></i>Absent</span><span><i class="leave"></i>Leave</span></div>
+        <div class="weekly-chart" role="img" [attr.aria-label]="'Recorded attendance for the last seven days. Exact values are in the data table below.'">
+          @for (day of data().weeklyAttendance; track day.date) {<div class="day-column"><span class="bar-value">{{day.present + day.absent + day.leave}}</span><div class="bar-space"><div class="bar-stack" [style.height.%]="(day.present + day.absent + day.leave) / chartMax() * 100"><span class="leave" [style.flex-grow]="day.leave"></span><span class="absent" [style.flex-grow]="day.absent"></span><span class="present" [style.flex-grow]="day.present"></span></div></div><span class="day-label">{{day.date | date:'EEE':'UTC'}}</span><small>{{day.date | date:'d':'UTC'}}</small></div>}
+        </div>
+        <details class="chart-data"><summary>View chart data</summary><table><caption class="sr-only">Weekly attendance counts</caption><thead><tr><th>Date (UTC)</th><th>Present</th><th>Absent</th><th>Leave</th></tr></thead><tbody>@for (day of data().weeklyAttendance; track day.date) {<tr><td>{{day.date}}</td><td>{{day.present}}</td><td>{{day.absent}}</td><td>{{day.leave}}</td></tr>}</tbody></table></details>
+        <p class="chart-note">Unrecorded attendance is not counted as absence.</p>
+      </section>
+      <section class="card department-chart"><div class="card-heading"><div><h2>People by department</h2><p>Employee distribution in your scope</p></div><app-icon name="building" /></div>
+        @if (!data().departments.length) {<div class="chart-empty"><app-icon name="people" /><p>No employees to display yet.</p></div>}
+        <div class="department-bars">@for (department of data().departments.slice(0, 6); track department.id) {<div class="department-bar"><div><span>{{department.name}}</span><strong>{{department.employees}}</strong></div><div class="bar-track" aria-hidden="true"><span [style.width.%]="department.employees / departmentMax() * 100"></span></div></div>}</div>
+        @if (data().departments.length > 6) {<details class="chart-data"><summary>{{data().departments.length - 6}} more departments</summary>@for (department of data().departments.slice(6); track department.id) {<p>{{department.name}}: {{department.employees}}</p>}</details>}
+        <a class="card-footer-link" routerLink="/departments">View departments <app-icon name="arrow" /></a>
+      </section>
+    </div>
+

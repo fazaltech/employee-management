@@ -1,0 +1,131 @@
+@base = http://localhost:5286
+@token = REPLACE_WITH_LOGIN_TOKEN
+@organizationId = REPLACE_WITH_ORGANIZATION_ID
+@departmentId = REPLACE_WITH_DEPARTMENT_ID
+@employeeId = REPLACE_WITH_EMPLOYEE_ID
+@workDate = 2026-10-28
+@creationKey = 788aa417-cbb8-4fa8-b0c2-97fa0e189f3c
+
+### Sign in with an existing account
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"email":"owner@example.com","password":"REPLACE_WITH_YOUR_PASSWORD"}
+
+### List my active organizations
+GET {{base}}/api/organizations
+Authorization: Bearer {{token}}
+
+### Create an organization with current user as owner
+POST {{base}}/api/organizations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name":"Example organization"}
+
+### Create a department
+POST {{base}}/api/organizations/{{organizationId}}/departments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name":"Engineering"}
+
+### Create employee: NEW UUID per employee, SAME UUID/body on retries
+POST {{base}}/api/organizations/{{organizationId}}/employees
+Authorization: Bearer {{token}}
+Idempotency-Key: {{creationKey}}
+Content-Type: application/json
+
+{
+  "employeeNumber":"EMP-001",
+  "firstName":"Alex",
+  "lastName":"Morgan",
+  "email":"alex@example.com",
+  "departmentId":"{{departmentId}}",
+  "managerEmployeeId":null,
+  "jobTitle":"Engineer",
+  "salary":75000,
+  "hireDate":"2026-10-01T00:00:00Z",
+  "isActive":true,
+  "provisionAppAccess":true,
+  "password":"REPLACE_WITH_AN_INDIVIDUAL_POLICY_COMPLIANT_PASSWORD"
+}
+
+### Retry provisioning independently
+POST {{base}}/api/organizations/{{organizationId}}/employees/{{employeeId}}/app-access
+Authorization: Bearer {{token}}
+
+### Email password setup: requires SMTP; never returns a token
+POST {{base}}/api/auth/password-setup/request
+Content-Type: application/json
+
+{"email":"alex@example.com"}
+
+### List employees visible to this membership
+GET {{base}}/api/organizations/{{organizationId}}/employees
+Authorization: Bearer {{token}}
+
+### Legacy route alias with explicit tenant context
+GET {{base}}/api/employees
+Authorization: Bearer {{token}}
+X-Organization-Id: {{organizationId}}
+
+### Check in (server UTC date/time)
+POST {{base}}/api/organizations/{{organizationId}}/attendance/check-in
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"employeeId":"{{employeeId}}","notes":""}
+
+### Check out using work date from check-in
+POST {{base}}/api/organizations/{{organizationId}}/attendance/{{employeeId}}/{{workDate}}/check-out
+Authorization: Bearer {{token}}
+
+### Attendance list
+GET {{base}}/api/organizations/{{organizationId}}/attendance?employeeId={{employeeId}}&from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{token}}
+
+### Correct absence (owner/HR/authorized direct-report manager)
+PUT {{base}}/api/organizations/{{organizationId}}/attendance/{{employeeId}}/{{workDate}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"status":"Absent","checkInUtc":null,"checkOutUtc":null,"notes":"Approved correction of missing attendance."}
+
+### Owners list and manage organization roles
+GET {{base}}/api/organizations/{{organizationId}}/memberships
+Authorization: Bearer {{token}}
+
+
+### Owner: create a new organization account with an individual initial password
+POST {{base}}/api/organizations/{{organizationId}}/accounts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"fullName":"Example Employee","email":"employee@example.com","role":"Employee","password":"REPLACE_WITH_AN_INDIVIDUAL_POLICY_COMPLIANT_PASSWORD"}
+
+### Owner: update name while retaining password (password is omitted)
+PUT {{base}}/api/organizations/{{organizationId}}/accounts/REPLACE_WITH_USER_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"fullName":"Updated Employee Name"}
+
+### PlatformAdmin: create an OrganizationOwner (use a platform admin token)
+POST {{base}}/api/platform/organizations/{{organizationId}}/owners
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"fullName":"Organization Owner","email":"new-owner@example.com","role":"OrganizationOwner","password":"REPLACE_WITH_AN_INDIVIDUAL_POLICY_COMPLIANT_PASSWORD"}
+
+### PlatformAdmin: update an existing owner's password explicitly
+PUT {{base}}/api/platform/organizations/{{organizationId}}/owners/REPLACE_WITH_OWNER_USER_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"fullName":"Organization Owner","password":"REPLACE_WITH_A_NEW_INDIVIDUAL_PASSWORD"}
+
+
+### Scoped dashboard: visible employees, last seven UTC attendance days and pending actions
+GET {{base}}/api/organizations/{{organizationId}}/dashboard
+Authorization: Bearer {{token}}

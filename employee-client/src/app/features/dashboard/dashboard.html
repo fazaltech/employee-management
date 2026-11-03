@@ -1,0 +1,43 @@
+<section class="dashboard">
+  <header class="page-heading"><div><span class="eyebrow">{{reports ? 'WORKFORCE INSIGHTS' : 'WORKSPACE OVERVIEW'}}</span><h1>{{reports ? 'People & attendance reports' : 'Welcome back, ' + (auth.user()?.fullName?.split(' ')?.[0] || 'there')}}</h1><p>{{today | date:'EEEE, MMMM d, y'}} <span class="dot">·</span> {{reports ? 'A clear view of the people you manage.' : 'Here is what is happening with your team.'}}</p></div><div class="heading-actions"><button class="secondary" (click)="reload()" [disabled]="loading() || platformLoading()" aria-label="Refresh dashboard"><app-icon name="refresh" /><span>Refresh</span></button>@if (reports && data()) {<button class="primary" (click)="exportReport()"><app-icon name="chart" /> Export weekly CSV</button>}@else {<span class="date-chip"><app-icon name="calendar" />{{today | date:'MMM d, y'}}</span>}</div></header>
+
+  @if (workspace.platform() && !reports) {
+    <section class="platform-section" aria-label="Platform overview"><div class="section-heading"><h2>Platform overview</h2><a routerLink="/settings">Manage organizations <app-icon name="arrow" /></a></div>
+    @if (platformLoading()) {<div class="loading-panel" role="status">Loading platform metrics…</div>}
+    @if (platformError()) {<div class="error-panel" role="alert">{{platformError()}} <button (click)="reload()">Retry</button></div>}
+    @if (platformData(); as p) {<div class="kpis"><article class="kpi"><span>Organizations</span><strong>{{p.total}}</strong><small>Across the platform</small><app-icon name="building" /></article><article class="kpi"><span>Active organizations</span><strong>{{p.active}}</strong><small>Currently enabled</small><app-icon name="check" /></article><article class="kpi"><span>Suspended organizations</span><strong>{{p.suspended}}</strong><small>Access paused</small><app-icon name="building" /></article><article class="kpi"><span>Organization owners</span><strong>{{p.owners}}</strong><small>Distinct owner accounts</small><app-icon name="people" /></article></div>}
+    </section>
+  }
+
+  @if (workspace.loading() || loading()) {
+    <div class="loading-panel" role="status"><span class="loading-dot"></span>Loading your workspace overview…</div><div class="kpis skeletons" aria-hidden="true"><div></div><div></div><div></div><div></div></div>
+  } @else if (!allowed()) {
+    <section class="empty-panel"><app-icon name="chart" /><h2>Reports are available to authorized staff</h2><p>Your personal attendance is available in Attendance.</p><a class="primary" routerLink="/attendance">View my attendance</a></section>
+  } @else if (!workspace.hrm.organization()) {
+    <section class="empty-panel"><app-icon name="building" /><h2>{{workspace.platform() ? 'Organization data stays in its workspace' : 'Your workspace starts here'}}</h2><p>{{workspace.platform() ? 'Employee and attendance information is available only for organizations where you hold a membership.' : 'Create an organization, or ask your administrator to add you to an existing team.'}}</p><a class="primary" routerLink="/settings">Open workspace settings <app-icon name="arrow" /></a></section>
+  } @else if (error()) {
+    <section class="error-panel" role="alert"><h2>We couldn’t load your overview</h2><p>{{error()}}</p><button class="primary" (click)="reload()">Try again</button></section>
+  } @else if (data(); as d) {
+    <div class="scope-line"><span><span class="live-dot"></span>{{workspace.hrm.organization()?.name}} <span class="dot">/</span> {{d.scope}}</span><small>Updated {{d.generatedAtUtc | date:'HH:mm':'UTC'}} UTC</small></div>
+    <div class="kpis">
+      <a class="kpi" routerLink="/employees"><span>{{d.scope === 'Organization' ? 'Total employees' : 'Visible employees'}}</span><strong>{{d.totalEmployees | number}}</strong><small>In your authorized scope</small><app-icon name="people" /></a>
+      <a class="kpi" routerLink="/employees"><span>Active employees</span><strong>{{d.activeEmployees | number}}</strong><small><span class="live-dot"></span>Currently active</small><app-icon name="check" /></a>
+      <a class="kpi" routerLink="/attendance"><span>Today’s attendance</span><strong>{{d.todayAttendance | number}}</strong><small>Recorded present today · UTC</small><app-icon name="clock" /></a>
+      <a class="kpi" href="#pending-actions"><span>Pending actions</span><strong>{{d.pendingActions | number}}</strong><small>Open periods & app access</small><app-icon name="bell" /></a>
+    </div>
+
+    <app-dashboard-charts [data]="d" />
+
+    <section class="card recent"><div class="card-heading"><div><h2>Recent attendance</h2><p>Latest updates from the last 7 UTC days</p></div><a routerLink="/attendance">View attendance <app-icon name="arrow" /></a></div>
+      @if (!d.recentAttendance.length) {<div class="table-empty"><app-icon name="clock" /><h3>No attendance recorded yet</h3><p>Check-ins and attendance corrections will appear here.</p><a routerLink="/attendance">Go to attendance</a></div>}
+      @else {<div class="table-scroll"><table><thead><tr><th>Employee</th><th>Department</th><th>Work date</th><th>Check-in · UTC</th><th>Check-out · UTC</th><th>Status</th></tr></thead><tbody>@for (row of d.recentAttendance; track row.employeeId + row.workDate) {<tr><td><div class="employee-cell"><span class="mini-avatar">{{initials(row.employeeName)}}</span><strong>{{row.employeeName}}</strong></div></td><td>{{row.department}}</td><td>{{row.workDate | date:'MMM d':'UTC'}}</td><td>{{row.checkInUtc ? (row.checkInUtc | date:'HH:mm':'UTC') : '—'}}</td><td [title]="row.checkOutUtc ?? ''">{{row.checkOutUtc ? (row.checkOutUtc | date:'MMM d, HH:mm':'UTC') : '—'}}</td><td><span class="status-badge" [class.absent-badge]="row.status === 'Absent'" [class.leave-badge]="row.status === 'Leave'">{{row.status}}</span></td></tr>}</tbody></table></div>}
+    </section>
+
+    <div class="bottom-grid"><section class="card quick-actions"><div class="card-heading"><div><h2>Quick actions</h2><p>A little less admin. More time for your people.</p></div></div><div class="action-buttons">
+      @if (workspace.isHR()) {<a routerLink="/employees" [queryParams]="{action: 'add'}"><span><app-icon name="people" /></span>Add employee<app-icon name="plus" /></a><a routerLink="/departments" [queryParams]="{action: 'add'}"><span><app-icon name="building" /></span>Add department<app-icon name="plus" /></a>}
+      @if (d.totalEmployees > 0) {<a routerLink="/attendance"><span><app-icon name="clock" /></span>Record attendance<app-icon name="arrow" /></a>}
+      @if (!workspace.isHR() && !d.totalEmployees) {<p>No linked employee record is available. Contact your organization administrator.</p>}
+    </div></section><section class="card pending" id="pending-actions"><div class="card-heading"><div><h2>Needs attention</h2><p>Pending actions in your current scope</p></div><span class="count-chip">{{d.pendingActions}}</span></div>@if (!d.pendingActions) {<div class="all-clear"><app-icon name="check" /><div><strong>You’re all caught up</strong><p>No pending actions right now.</p></div></div>}@else {@for (action of d.actions; track action.label) {@if (action.count) {<a [routerLink]="action.destination"><span>{{action.label}}</span><strong>{{action.count}}</strong><app-icon name="arrow" /></a>}}}</section></div>
+    <footer class="dashboard-footer">PeopleOps <span>All metrics reflect your current access. Attendance uses UTC work dates.</span></footer>
+  }
+</section>

@@ -1,0 +1,36 @@
+@if (auth.isAuthenticated()) {
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell" [class.is-collapsed]="collapsed()" [class.drawer-open]="drawer()">
+    @if (mobile() && drawer()) { <button class="drawer-scrim" (click)="closeDrawer()" aria-label="Close navigation"></button> }
+    <aside class="sidebar" id="main-navigation" [attr.inert]="mobile() && !drawer() ? '' : null" [attr.aria-label]="'Main navigation'">
+      <a class="brand" routerLink="/dashboard" aria-label="PeopleOps home"><span class="brand-mark"><app-icon name="people" /></span><span class="nav-copy">People<span class="brand-accent">Ops</span><small>YOUR PEOPLE, CONNECTED</small></span></a>
+      @if (mobile()) { <button class="drawer-close" (click)="closeDrawer()" aria-label="Close sidebar"><app-icon name="close" /></button> }
+      <span class="nav-section nav-copy">WORKSPACE</span>
+      <nav aria-label="Workspace">
+        @for (item of nav(); track item.path) {
+          <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page" [title]="item.label"><app-icon [name]="item.icon" /><span class="nav-copy">{{item.label}}</span></a>
+        }
+      </nav>
+      <div class="sidebar-bottom"><span class="workspace-dot"></span><div class="nav-copy"><strong>{{workspace.hrm.organization()?.name ?? 'PeopleOps workspace'}}</strong><small>{{workspace.role()}}</small></div></div>
+    </aside>
+    <div class="main-column" [attr.inert]="mobile() && drawer() ? '' : null">
+      <header class="topbar">
+        <button id="sidebar-toggle" class="icon-button" (click)="toggleSidebar()" aria-label="Toggle sidebar" aria-controls="main-navigation" [attr.aria-expanded]="mobile() ? drawer() : !collapsed()"><app-icon name="menu" /></button>
+        <div class="org-control"><label for="organization-picker">Workspace</label><select id="organization-picker" [ngModel]="workspace.hrm.organization()?.id ?? ''" (ngModelChange)="workspace.select($event)" [disabled]="workspace.loading() || !workspace.organizations().length">
+          @if (!workspace.organizations().length) {<option value="">{{workspace.platform() ? 'Platform workspace' : 'No organization selected'}}</option>}
+          @for (org of workspace.organizations(); track org.id) {<option [value]="org.id">{{org.name}}</option>}
+        </select></div>
+        <button class="icon-button mobile-search-toggle" (click)="mobileSearch.set(!mobileSearch())" aria-label="Toggle employee search" [attr.aria-expanded]="mobileSearch()"><app-icon name="search" /></button>
+        <form class="global-search" [class.search-open]="mobileSearch()" (ngSubmit)="search()" role="search"><app-icon name="search" /><input name="search" [(ngModel)]="query" placeholder="Search employees..." aria-label="Search employees in your current organization" [disabled]="!workspace.hrm.organization()"><button class="sr-only" type="submit">Search</button></form>
+        <div class="notification-wrap"><button class="icon-button" (click)="showNotifications()" [attr.aria-expanded]="notifications()" aria-label="Notifications and pending actions"><app-icon name="bell" /></button>
+          @if (notifications()) {<section class="popover notification-panel" aria-label="Pending actions"><h3>Needs attention</h3><p aria-live="polite">{{noticeMessage()}}</p>@for (notice of notices(); track notice.label) {<a [routerLink]="notice.destination"><span>{{notice.label}}</span><strong>{{notice.count}}</strong></a>}<small>Based on current workspace activity.</small></section>}
+        </div>
+        <details class="profile-menu"><summary><span class="avatar">{{auth.user()?.fullName?.charAt(0)?.toUpperCase()}}</span><span class="profile-copy"><strong>{{auth.user()?.fullName}}</strong><small>{{workspace.role()}}</small></span><app-icon name="down" /></summary><div class="popover"><strong>{{auth.user()?.fullName}}</strong><small>{{auth.user()?.email}}</small><small>{{workspace.role()}}</small><a routerLink="/settings"><app-icon name="settings" /> Account settings</a><button (click)="logout()"><app-icon name="logout" /> Sign out</button></div></details>
+      </header>
+      <main id="main-content">
+        @if (workspace.error()) {<div class="workspace-error" role="alert">{{workspace.error()}} <button (click)="workspace.refresh()">Retry</button></div>}
+        <router-outlet />
+      </main>
+    </div>
+  </div>
+} @else { <main class="auth-layout"><router-outlet /></main> }

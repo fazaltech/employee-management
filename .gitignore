@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+EmployeeApi/appsettings.json
+EmployeeApi/appsettings.Development.json

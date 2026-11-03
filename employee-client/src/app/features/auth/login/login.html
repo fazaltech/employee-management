@@ -1,0 +1,45 @@
+<section class="auth-shell">
+  <aside class="story">
+    <div class="brand"><span class="brand-mark">P</span> PeopleOps</div>
+    <div class="story-copy">
+      <span class="eyebrow">Your team, in focus</span>
+      <h1>People data without the busywork.</h1>
+      <p>Keep your employee directory accurate, secure, and ready whenever your team needs it.</p>
+    </div>
+    <div class="proof"><span></span> Identity protected · MongoDB powered</div>
+  </aside>
+
+  <div class="form-side">
+    <form class="form-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <h2>Welcome back</h2>
+      <p>Sign in to manage your employee directory.</p>
+
+      @if (error()) {
+        <div class="error-banner" role="alert">{{ error() }}</div>
+      }
+
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" type="email" formControlName="email" autocomplete="email" placeholder="you@company.com" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small>Enter a valid email address.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" formControlName="password" autocomplete="current-password" placeholder="Your password" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small>Password is required.</small>
+        }
+      </div>
+
+      <button class="primary-action" type="submit" [disabled]="busy()">
+        {{ busy() ? 'Signing in…' : 'Sign in' }}
+      </button>
+      <p class="switch-auth">New to PeopleOps? <a routerLink="/register">Create an account</a></p>
+    </form>
+  </div>
+</section>
+
+<p style="text-align:center"><a routerLink="/password-setup">Set or reset your password</a></p>

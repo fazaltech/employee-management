@@ -1,0 +1,216 @@
+<section class="page">
+  @if (error()) {
+    <div class="message error-message" role="alert">
+      <span>{{ error() }}</span>
+      <button type="button" (click)="load()">Try again</button>
+    </div>
+  }
+  @if (!hrm.organization()) {<div class="state-panel"><h2>Select an organization to view employees</h2><a routerLink="/settings">Open workspace settings</a></div>}
+  @if (hrm.organization()) {
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">Team directory</span>
+      <h1>Employees</h1>
+      <p>Keep every role, department, and employee record in one place.</p>
+    </div>
+    @if (isHR()) { <button class="add-button" type="button" (click)="openCreate()">
+      <app-icon name="plus" /> Add employee
+    </button> }
+  </header>
+
+  <div class="stats" aria-label="Employee summary">
+    <article>
+      <span class="stat-icon purple" aria-hidden="true"><app-icon name="people" /></span>
+      <div><strong>{{ employees().length }}</strong><span>Visible employees</span></div>
+    </article>
+    <article>
+      <span class="stat-icon green" aria-hidden="true"><app-icon name="check" /></span>
+      <div><strong>{{ activeCount() }}</strong><span>Active employees</span></div>
+    </article>
+    <article>
+      <span class="stat-icon amber" aria-hidden="true"><app-icon name="building" /></span>
+      <div><strong>{{ departmentCount() }}</strong><span>Departments</span></div>
+    </article>
+  </div>
+
+
+  <section class="directory-card">
+    <div class="card-heading">
+      <div>
+        <h2>Employee directory</h2>
+        <p>{{ employees().length }} {{ employees().length === 1 ? 'record' : 'records' }}</p>
+      </div>
+    </div>
+
+    @if (searchTerm()) {<div class="search-context">Search results for <strong>{{searchTerm()}}</strong> <a routerLink="/employees">Clear search</a></div>}
+    @if (loading()) {
+      <div class="state-panel" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <strong>Loading your team…</strong>
+      </div>
+    } @else if (filteredEmployees().length === 0) {
+      <div class="state-panel">
+        <span class="empty-icon" aria-hidden="true"><app-icon name="people" /></span>
+        <strong>{{searchTerm() ? 'No matching employees' : 'No employees yet'}}</strong>
+        <p>{{searchTerm() ? 'Try a different name, email, or employee number.' : 'Add your first employee to start the directory.'}}</p>
+        @if (isHR()) { <button class="secondary-button" type="button" (click)="openCreate()">Add first employee</button> }
+      </div>
+    } @else {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Department</th>
+              <th>Hire date</th>
+              <th>Salary</th>
+              <th>Status</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (employee of filteredEmployees(); track employee.id) {
+              <tr>
+                <td>
+                  <div class="person">
+                    <span class="person-avatar">{{ initials(employee) }}</span>
+                    <div>
+                      <strong>{{ employee.firstName }} {{ employee.lastName }}</strong>
+                      <small>{{ employee.employeeNumber }} · {{ employee.email }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ employee.jobTitle }}</td>
+                <td><span class="department">{{ departmentLabel(employee.departmentId) }}</span></td>
+                <td>{{ employee.hireDate | date: 'mediumDate' }}</td>
+                <td>{{ employee.salary === null ? 'Restricted' : (employee.salary | number: '1.0-2') }}</td>
+                <td>
+                  <span class="status" [class.inactive]="!employee.isActive">
+                    {{ employee.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    @if (isHR()) {
+                    <button type="button" (click)="openEdit(employee)" [attr.aria-label]="'Edit ' + employee.firstName">Edit</button>
+                    <button
+                      class="delete"
+                      type="button"
+                      (click)="deleteEmployee(employee)"
+                      [disabled]="deletingId() === employee.id"
+                      [attr.aria-label]="'Delete ' + employee.firstName"
+                    >{{ deletingId() === employee.id ? 'Deleting…' : 'Delete' }}</button>
+                    @if (employee.applicationUserId) { <button (click)="sendSetup(employee)">Email password link</button> }
+                    }
+                  </div>
+                  <small>{{employee.appAccessStatus === 'Pending' ? 'App access pending - edit and retry provisioning' : employee.appAccessStatus === 'Linked' ? 'App account linked' : ''}}</small>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+  }
+</section>
+
+@if (showForm()) {
+  <div class="drawer-backdrop" role="presentation" (click)="closeForm()">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="employee-form-title" (click)="$event.stopPropagation()">
+      <header>
+        <div>
+          <span class="eyebrow">{{ editingId() ? 'Update record' : 'New record' }}</span>
+          <h2 id="employee-form-title">{{ editingId() ? 'Edit employee' : 'Add employee' }}</h2>
+        </div>
+        <button class="close" type="button" (click)="closeForm()" aria-label="Close"><app-icon name="close" /></button>
+      </header>
+
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        @if (formError()) {
+          <div class="message error-message" role="alert">{{ formError() }}</div>
+        }
+
+        <div class="form-grid">
+          <label class="field full">
+            <span>Employee number</span>
+            <input formControlName="employeeNumber" placeholder="EMP-001" />
+            @if (form.controls.employeeNumber.touched && form.controls.employeeNumber.invalid) {
+              <small>Employee number is required.</small>
+            }
+          </label>
+
+          <label class="field">
+            <span>First name</span>
+            <input formControlName="firstName" autocomplete="given-name" placeholder="Alex" />
+            @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+              <small>First name is required.</small>
+            }
+          </label>
+
+          <label class="field">
+            <span>Last name</span>
+            <input formControlName="lastName" autocomplete="family-name" placeholder="Morgan" />
+            @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+              <small>Last name is required.</small>
+            }
+          </label>
+
+          <label class="field full">
+            <span>Email address</span>
+            <input type="email" formControlName="email" autocomplete="email" placeholder="alex@company.com" />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <small>Enter a valid email address.</small>
+            }
+          </label>
+
+          <label class="field">
+            <span>Department</span>
+            <select formControlName="departmentId"><option value="">Select department</option>@for (d of departments(); track d.id) { <option [value]="d.id">{{d.name}}</option> }</select>
+            @if (form.controls.departmentId.touched && form.controls.departmentId.invalid) { <small>Department is required.</small> }
+          </label>
+
+          <label class="field">
+            <span>Job title</span>
+            <input formControlName="jobTitle" placeholder="Software Engineer" />
+            @if (form.controls.jobTitle.touched && form.controls.jobTitle.invalid) {
+              <small>Job title is required.</small>
+            }
+          </label>
+
+          <label class="field">
+            <span>Annual salary</span>
+            <input type="number" min="0" step="0.01" formControlName="salary" />
+            @if (form.controls.salary.touched && form.controls.salary.invalid) {
+              <small>Salary must be zero or greater.</small>
+            }
+          </label>
+
+          <label class="field">
+            <span>Hire date</span>
+            <input type="date" formControlName="hireDate" />
+            @if (form.controls.hireDate.touched && form.controls.hireDate.invalid) {
+              <small>Hire date is required.</small>
+            }
+          </label>
+
+          <label class="field full"><span>Reports to</span><select formControlName="managerEmployeeId"><option value="">No manager</option>@for (e of employees(); track e.id) { @if (e.id !== editingId() && e.isActive) { <option [value]="e.id">{{e.firstName}} {{e.lastName}}</option> } }</select></label>
+          <label class="field full"><span>{{editingId() ? 'New account password (optional)' : 'Initial account password'}}</span><input type="password" formControlName="password" autocomplete="new-password" maxlength="128"><small>Leave blank on update to keep the current password. Select app access when supplying a password.</small></label>
+          <label class="toggle full"><input type="checkbox" formControlName="provisionAppAccess"><span><strong>Provision or retry app access</strong><small>Creates or links an account with Employee access. Supply an initial password when email is disabled. Existing access roles are preserved.</small></span></label>
+          <label class="toggle full">
+            <input type="checkbox" formControlName="isActive" />
+            <span><strong>Active employee</strong><small>Inactive employees remain in the directory.</small></span>
+          </label>
+        </div>
+
+        <footer>
+          <button class="cancel" type="button" (click)="closeForm()">Cancel</button>
+          <button class="save" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : editingId() ? 'Save changes' : 'Add employee' }}
+          </button>
+        </footer>
+      </form>
+    </aside>
+  </div>
+}
