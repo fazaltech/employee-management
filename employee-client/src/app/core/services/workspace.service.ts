@@ -21,7 +21,7 @@ export class WorkspaceService {
       const user = this.auth.user();
       this.generation++;
       this.hrm.organization.set(null); this.organizations.set([]); this.platform.set(false); this.error.set('');
-      if (user) this.refresh(); else this.loading.set(false);
+      if (user && !user.mustChangePassword) this.refresh(); else this.loading.set(false);
     });
   }
   refresh() {

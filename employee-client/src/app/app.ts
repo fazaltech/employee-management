@@ -30,7 +30,7 @@ export class App {
     const items = [{label: 'Dashboard', path: '/dashboard', icon: 'grid'}];
     if (scoped) items.push({label: 'Employees', path: '/employees', icon: 'people'}, {label: 'Departments', path: '/departments', icon: 'building'});
     if (scoped && this.workspace.hrm.organization()?.role !== 'Employee') items.push({label: 'Organization Hierarchy', path: '/hierarchy', icon: 'hierarchy'});
-    if (scoped) items.push({label: 'Attendance', path: '/attendance', icon: 'clock'});
+    if (scoped) items.push({label: 'Attendance', path: '/attendance', icon: 'clock'}, {label: 'Leaves', path: '/leaves', icon: 'calendar'}, {label: 'Salaries / Payroll', path: '/payroll', icon: 'chart'}, {label: 'Shifts', path: '/shifts', icon: 'clock'});
     if (scoped && this.workspace.hrm.organization()?.role !== 'Employee') items.push({label: 'Reports', path: '/reports', icon: 'chart'});
     items.push({label: 'Settings', path: '/settings', icon: 'settings'});
     return items;

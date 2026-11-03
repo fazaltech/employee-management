@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
@@ -12,7 +12,7 @@ import { EmployeeService } from '../../core/services/employee.service';
 
 @Component({
   selector: 'app-employees',
-  imports: [DatePipe, DecimalPipe, ReactiveFormsModule, RouterLink, Icon],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, Icon],
   templateUrl: './employees.html',
   styleUrl: './employees.scss',
 })
@@ -40,7 +40,7 @@ export class Employees {
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
-    departmentId: ['', Validators.required],
+    departmentId: [''],
     jobTitle: ['', Validators.required],
     salary: [0, [Validators.required, Validators.min(0)]],
     hireDate: [this.today(), Validators.required],

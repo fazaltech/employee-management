@@ -1,4 +1,5 @@
 export interface AuthUser {
+  mustChangePassword?: boolean;
   id: string;
   fullName: string;
   email: string;

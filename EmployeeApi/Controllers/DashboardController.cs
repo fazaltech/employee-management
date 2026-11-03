@@ -39,6 +39,12 @@ public sealed class DashboardController(IEmployeeService employees, HrmStore sto
         var pendingAccess = tenant.IsHR ? visible.Count(x => x.ProvisioningUserId != null && x.ApplicationUserId == null) : 0;
         var actions = new List<DashboardAction> { new("Open attendance periods", openCount, "/attendance") };
         if (tenant.IsHR) actions.Add(new("App access awaiting completion", pendingAccess, "/employees"));
+        var visibleIds = byId.Keys.ToArray();
+        var leaveCount = (int)await store.Leaves.CountDocumentsAsync(x => x.OrganizationId == tenant.OrganizationId && visibleIds.Contains(x.EmployeeId) && (x.Status == "PendingManager" || x.Status == "PendingHR" || x.Status == "PendingOwner"), cancellationToken: ct);
+        actions.Add(new("Pending leave requests", leaveCount, "/leaves"));
+        var salaryCount = tenant.IsHR ? (int)await store.Salaries.CountDocumentsAsync(x => x.OrganizationId == tenant.OrganizationId && x.Status == "Draft", cancellationToken: ct) : 0;
+        var payrollCount = tenant.IsHR ? (int)await store.Payroll.CountDocumentsAsync(x => x.OrganizationId == tenant.OrganizationId && x.Status == "Draft", cancellationToken: ct) : 0;
+        if (tenant.IsHR) { actions.Add(new("Salary changes awaiting approval", salaryCount, "/payroll")); actions.Add(new("Payroll drafts", payrollCount, "/payroll")); }
         var days = Enumerable.Range(0, 7).Select(i => {
             var date = now.Date.AddDays(i - 6).ToString("yyyy-MM-dd");
             var rows = week.Where(x => x.WorkDate == date).ToArray();
@@ -52,6 +58,6 @@ public sealed class DashboardController(IEmployeeService employees, HrmStore sto
             x.CheckInUtc, x.CheckOutUtc, x.Status)).ToArray();
         return Ok(new DashboardResponse(now, tenant.IsHR ? "Organization" : tenant.Role == OrganizationRoles.Manager ? "Your team" : "Your records",
             visible.Count, visible.Count(x => x.IsActive), week.Count(x => x.WorkDate == today && x.Status == "Present"),
-            openCount + pendingAccess, days, departmentCounts, recent, actions));
+            openCount + pendingAccess + leaveCount + salaryCount + payrollCount, days, departmentCounts, recent, actions));
     }
 }

@@ -1,11 +1,13 @@
 using EmployeeApi.Infrastructure;
+using EmployeeApi.Data;
+using Microsoft.EntityFrameworkCore;
 using EmployeeApi.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace EmployeeApi.Services;
 
-public sealed class EmployeeService(HrmStore store, TenantContext tenant) : IEmployeeService
+public sealed class EmployeeService(HrmStore store, TenantContext tenant, ApplicationDbContext db) : IEmployeeService
 {
     public FilterDefinition<Employee> TenantFilter => Builders<Employee>.Filter.Eq(x => x.OrganizationId, tenant.OrganizationId);
     public async Task<FilterDefinition<Employee>> VisibleFilter(CancellationToken ct)
@@ -30,7 +32,9 @@ public sealed class EmployeeService(HrmStore store, TenantContext tenant) : IEmp
     }
     public async Task Validate(Employee employee, CancellationToken ct)
     {
-        if (!ObjectId.TryParse(employee.DepartmentId, out _) || !await store.Departments.Find(x => x.OrganizationId == tenant.OrganizationId && x.Id == employee.DepartmentId).AnyAsync(ct))
+        if (employee.ApplicationUserId != null && await db.Organizations.AnyAsync(x => x.OwnerUserId == employee.ApplicationUserId, ct))
+            throw new ApiException(409, "Organization owners must not have employee records or department assignments.");
+        if (!string.IsNullOrEmpty(employee.DepartmentId) && (!ObjectId.TryParse(employee.DepartmentId, out _) || !await store.Departments.Find(x => x.OrganizationId == tenant.OrganizationId && x.Id == employee.DepartmentId).AnyAsync(ct)))
             throw new ApiException(400, "Select a department in this organization.");
         var visited = new HashSet<string> { employee.Id };
         var managerId = employee.ManagerEmployeeId;
@@ -59,6 +63,9 @@ public sealed class EmployeeService(HrmStore store, TenantContext tenant) : IEmp
         if (!ObjectId.TryParse(id, out var objectId)) return false;
         id = objectId.ToString();
         if (await store.Employees.Find(x => x.OrganizationId == tenant.OrganizationId && x.ManagerEmployeeId == id).AnyAsync(cancellationToken)
+            || await store.Leaves.Find(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == id).AnyAsync(cancellationToken)
+            || await store.Salaries.Find(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == id).AnyAsync(cancellationToken)
+            || await store.ShiftAssignments.Find(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == id).AnyAsync(cancellationToken)
             || await store.Attendance.Find(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == id).AnyAsync(cancellationToken))
             throw new ApiException(409, "Reassign direct reports first. Employees with attendance history must be deactivated instead of deleted.");
         var employee = await GetByIdAsync(id, cancellationToken);

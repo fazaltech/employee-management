@@ -64,7 +64,7 @@
               <th>Role</th>
               <th>Department</th>
               <th>Hire date</th>
-              <th>Salary</th>
+
               <th>Status</th>
               <th><span class="sr-only">Actions</span></th>
             </tr>
@@ -84,7 +84,7 @@
                 <td>{{ employee.jobTitle }}</td>
                 <td><span class="department">{{ departmentLabel(employee.departmentId) }}</span></td>
                 <td>{{ employee.hireDate | date: 'mediumDate' }}</td>
-                <td>{{ employee.salary === null ? 'Restricted' : (employee.salary | number: '1.0-2') }}</td>
+
                 <td>
                   <span class="status" [class.inactive]="!employee.isActive">
                     {{ employee.isActive ? 'Active' : 'Inactive' }}
@@ -167,8 +167,8 @@
 
           <label class="field">
             <span>Department</span>
-            <select formControlName="departmentId"><option value="">Select department</option>@for (d of departments(); track d.id) { <option [value]="d.id">{{d.name}}</option> }</select>
-            @if (form.controls.departmentId.touched && form.controls.departmentId.invalid) { <small>Department is required.</small> }
+            <select formControlName="departmentId"><option value="">No department (optional)</option>@for (d of departments(); track d.id) { <option [value]="d.id">{{d.name}}</option> }</select>
+
           </label>
 
           <label class="field">
@@ -179,13 +179,7 @@
             }
           </label>
 
-          <label class="field">
-            <span>Annual salary</span>
-            <input type="number" min="0" step="0.01" formControlName="salary" />
-            @if (form.controls.salary.touched && form.controls.salary.invalid) {
-              <small>Salary must be zero or greater.</small>
-            }
-          </label>
+
 
           <label class="field">
             <span>Hire date</span>

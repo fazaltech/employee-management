@@ -26,6 +26,7 @@ public sealed class TenantAuthorizationHandler(ApplicationDbContext db, TenantCo
         var organizationId = http?.Request.RouteValues["organizationId"]?.ToString()
             ?? http?.Request.Headers["X-Organization-Id"].ToString();
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(organizationId)) return;
+        if (await (from ur in db.UserRoles join r in db.Roles on ur.RoleId equals r.Id where ur.UserId == userId && r.Name == "PlatformAdmin" select ur).AnyAsync()) return;
         var membership = await db.OrganizationMemberships.AsNoTracking()
             .SingleOrDefaultAsync(x => x.OrganizationId == organizationId && x.UserId == userId && x.IsActive);
         if (membership is null || !requirement.Roles.Contains(membership.Role) ||

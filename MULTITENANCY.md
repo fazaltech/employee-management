@@ -1,3 +1,5 @@
+> Current EMS/HRM setup and breaking changes: [HRM-SETUP.md](HRM-SETUP.md). The historical notes below are superseded where they conflict.
+
 # Multi-tenant EMS/HRM delivery
 
 ## Changed files and architecture

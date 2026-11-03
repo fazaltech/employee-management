@@ -14,7 +14,7 @@
   } @else if (!allowed()) {
     <section class="empty-panel"><app-icon name="chart" /><h2>Reports are available to authorized staff</h2><p>Your personal attendance is available in Attendance.</p><a class="primary" routerLink="/attendance">View my attendance</a></section>
   } @else if (!workspace.hrm.organization()) {
-    <section class="empty-panel"><app-icon name="building" /><h2>{{workspace.platform() ? 'Organization data stays in its workspace' : 'Your workspace starts here'}}</h2><p>{{workspace.platform() ? 'Employee and attendance information is available only for organizations where you hold a membership.' : 'Create an organization, or ask your administrator to add you to an existing team.'}}</p><a class="primary" routerLink="/settings">Open workspace settings <app-icon name="arrow" /></a></section>
+    <section class="empty-panel"><app-icon name="building" /><h2>{{workspace.platform() ? 'Organization data stays in its workspace' : 'Your workspace starts here'}}</h2><p>{{workspace.platform() ? 'Employee and attendance information is available only for organizations where you hold a membership.' : 'Ask your platform administrator to create your organization or add you to an existing team.'}}</p><a class="primary" routerLink="/settings">Open workspace settings <app-icon name="arrow" /></a></section>
   } @else if (error()) {
     <section class="error-panel" role="alert"><h2>We couldn’t load your overview</h2><p>{{error()}}</p><button class="primary" (click)="reload()">Try again</button></section>
   } @else if (data(); as d) {
@@ -23,7 +23,7 @@
       <a class="kpi" routerLink="/employees"><span>{{d.scope === 'Organization' ? 'Total employees' : 'Visible employees'}}</span><strong>{{d.totalEmployees | number}}</strong><small>In your authorized scope</small><app-icon name="people" /></a>
       <a class="kpi" routerLink="/employees"><span>Active employees</span><strong>{{d.activeEmployees | number}}</strong><small><span class="live-dot"></span>Currently active</small><app-icon name="check" /></a>
       <a class="kpi" routerLink="/attendance"><span>Today’s attendance</span><strong>{{d.todayAttendance | number}}</strong><small>Recorded present today · UTC</small><app-icon name="clock" /></a>
-      <a class="kpi" href="#pending-actions"><span>Pending actions</span><strong>{{d.pendingActions | number}}</strong><small>Open periods & app access</small><app-icon name="bell" /></a>
+      <a class="kpi" href="#pending-actions"><span>Pending actions</span><strong>{{d.pendingActions | number}}</strong><small>Attendance, leave & payroll</small><app-icon name="bell" /></a>
     </div>
 
     <app-dashboard-charts [data]="d" />

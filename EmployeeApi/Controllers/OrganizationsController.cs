@@ -1,3 +1,4 @@
+using MongoDB.Driver;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using EmployeeApi.Data;
@@ -12,11 +13,12 @@ namespace EmployeeApi.Controllers;
 
 public sealed record OrganizationRequest([Required, StringLength(160)] string Name);
 public sealed record MembershipRequest([Required] string Role, bool IsActive);
+public sealed record CreateOrganizationRequest([Required, StringLength(160)] string Name, [Required] CreateAccountRequest Owner);
 public sealed record OrganizationStatusRequest([Required] string Status);
 
 [ApiController, Authorize, Route("api/organizations")]
 public sealed class OrganizationsController(ApplicationDbContext db, TenantContext tenant, TenantWriteLock writeLock, IConfiguration configuration,
-    AccountAdministrationService accounts, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> users) : ControllerBase
+    AccountAdministrationService accounts, HrmStore store, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> users) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct) => Ok(await (
@@ -26,16 +28,32 @@ public sealed class OrganizationsController(ApplicationDbContext db, TenantConte
         where !configuration.GetValue<bool>("Authentication:RequireConfirmedEmail", true) || !m.RequiresVerifiedEmail || db.Users.Any(u => u.Id == m.UserId && u.EmailConfirmed)
         select new { o.Id, o.Name, o.Status, m.Role, o.CreatedAtUtc, o.UpdatedAtUtc }).ToListAsync(ct));
 
-    [HttpPost]
-    public async Task<IActionResult> Create(OrganizationRequest request, CancellationToken ct)
+    [HttpPost, Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> Create(CreateOrganizationRequest request, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        if (!await db.Users.AnyAsync(x => x.Id == userId, ct)) return Unauthorized();
-        var org = new Organization { Name = request.Name.Trim() };
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var email = request.Owner.Email.Trim().ToLowerInvariant();
+        if (await users.FindByEmailAsync(email) != null) throw new ApiException(409, "The owner must be a new account with a unique email.");
+        var owner = new ApplicationUser { Email = email, UserName = email, FullName = request.Owner.FullName.Trim() };
+        await accounts.ValidatePassword(owner, request.Owner.Password, true);
+        AccountAdministrationService.EnsureSucceeded(request.Owner.Password == null ? await users.CreateAsync(owner) : await users.CreateAsync(owner, request.Owner.Password));
+        var org = new Organization { Name = request.Name.Trim(), OwnerUserId = owner.Id };
         db.Organizations.Add(org);
-        db.OrganizationMemberships.Add(new OrganizationMembership { OrganizationId = org.Id, UserId = userId, Role = OrganizationRoles.Owner });
-        await db.SaveChangesAsync(ct); // Both records commit atomically.
-        return Created($"/api/organizations/{org.Id}", new { org.Id, org.Name, org.Status, Role = OrganizationRoles.Owner });
+        db.OrganizationMemberships.Add(new OrganizationMembership { OrganizationId = org.Id, UserId = owner.Id, Role = OrganizationRoles.Owner, RequiresVerifiedEmail = true });
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        // Registry is authoritative for access; startup repairs a missing HR profile after interruption.
+        await store.Organizations.ReplaceOneAsync(x => x.OrganizationId == org.Id,
+            new OrganizationProfile { Id = org.Id, OrganizationId = org.Id, Name = org.Name, OwnerUserId = owner.Id }, new MongoDB.Driver.ReplaceOptions { IsUpsert = true }, ct);
+        return Created($"/api/organizations/{org.Id}", new { org.Id, org.Name, org.Status });
+    }
+    [HttpPut("platform/{organizationId}"), Authorize(Policy = "PlatformAdmin")]
+    public async Task<IActionResult> PlatformRename(string organizationId, OrganizationRequest request, CancellationToken ct)
+    {
+        var changed = await db.Organizations.Where(x => x.Id == organizationId).ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, request.Name.Trim()).SetProperty(x => x.UpdatedAtUtc, DateTime.UtcNow), ct);
+        if (changed == 0) return NotFound();
+        await store.Organizations.UpdateOneAsync(x => x.OrganizationId == organizationId, MongoDB.Driver.Builders<OrganizationProfile>.Update.Set(x => x.Name, request.Name.Trim()), cancellationToken: ct);
+        return NoContent();
     }
 
     [HttpPut("{organizationId}"), Authorize(Policy = "OrganizationOwner")]
@@ -44,16 +62,17 @@ public sealed class OrganizationsController(ApplicationDbContext db, TenantConte
         await using var tx = await writeLock.Acquire(ct);
         await db.Organizations.Where(x => x.Id == tenant.OrganizationId).ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, request.Name.Trim()).SetProperty(x => x.UpdatedAtUtc, DateTime.UtcNow), ct);
         await tx.CommitAsync(ct);
+        await store.Organizations.UpdateOneAsync(x => x.OrganizationId == tenant.OrganizationId, Builders<OrganizationProfile>.Update.Set(x => x.Name, request.Name.Trim()), cancellationToken: ct);
         return NoContent();
     }
 
-    [HttpGet("{organizationId}/memberships"), Authorize(Policy = "OrganizationOwner")]
+    [HttpGet("{organizationId}/memberships"), Authorize(Policy = "HRAdmin")]
     public async Task<IActionResult> Members(string organizationId, CancellationToken ct) => Ok(await (
         from m in db.OrganizationMemberships join u in db.Users on m.UserId equals u.Id
         where m.OrganizationId == tenant.OrganizationId
         select new { m.UserId, u.FullName, u.Email, m.Role, m.IsActive, EmailVerificationPending = configuration.GetValue<bool>("Authentication:RequireConfirmedEmail", true) && m.RequiresVerifiedEmail && !u.EmailConfirmed }).ToListAsync(ct));
 
-    [HttpPut("{organizationId}/memberships/{userId}"), Authorize(Policy = "OrganizationOwner")]
+    [HttpPut("{organizationId}/memberships/{userId}"), Authorize(Policy = "HRAdmin")]
     public async Task<IActionResult> UpdateMember(string organizationId, string userId, MembershipRequest request, CancellationToken ct)
     {
         if (!OrganizationRoles.All.Contains(request.Role)) throw new ApiException(400, "Invalid organization role.");
@@ -71,6 +90,8 @@ public sealed class OrganizationsController(ApplicationDbContext db, TenantConte
         if (member.Role == OrganizationRoles.Owner && member.IsActive && (request.Role != OrganizationRoles.Owner || !request.IsActive)
             && await db.OrganizationMemberships.CountAsync(x => x.OrganizationId == tenant.OrganizationId && x.Role == OrganizationRoles.Owner && x.IsActive, ct) <= 1)
             throw new ApiException(409, "The organization must retain an active owner.");
+        if (member.Role == OrganizationRoles.Owner || request.Role == OrganizationRoles.Owner)
+            throw new ApiException(409, "Organization ownership cannot be reassigned through membership editing.");
         member.Role = request.Role;
         member.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
@@ -83,6 +104,8 @@ public sealed class OrganizationsController(ApplicationDbContext db, TenantConte
     {
         if (request.Status is not ("Active" or "Suspended")) throw new ApiException(400, "Invalid organization status.");
         var changed = await db.Organizations.Where(x => x.Id == organizationId).ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, request.Status).SetProperty(x => x.UpdatedAtUtc, DateTime.UtcNow), ct);
-        return changed == 0 ? NotFound() : NoContent();
+        if (changed == 0) return NotFound();
+        await store.Organizations.UpdateOneAsync(x => x.OrganizationId == organizationId, Builders<OrganizationProfile>.Update.Set(x => x.Status, request.Status), cancellationToken: ct);
+        return NoContent();
     }
 }

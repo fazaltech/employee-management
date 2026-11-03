@@ -8,4 +8,5 @@ public sealed record AuthResponse(
 public sealed record UserResponse(
     string Id,
     string FullName,
-    string Email);
+    string Email,
+    bool MustChangePassword = false);

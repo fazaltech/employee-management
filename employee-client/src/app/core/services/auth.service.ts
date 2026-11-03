@@ -40,6 +40,10 @@ export class AuthService {
       .pipe(tap((response) => { if ('token' in response) this.storeAuth(response); }));
   }
 
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/change-password`, {currentPassword, newPassword}).pipe(tap(response => this.storeAuth(response)));
+  }
+
   logout(): void {
     this.clearStoredAuth();
     this.userSignal.set(null);

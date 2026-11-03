@@ -47,6 +47,7 @@ public sealed class EmployeesController(IEmployeeService employees, HrmStore sto
             else
             {
                 employee = request.ToEmployee();
+                employee.Salary = 0; // Compensation is approved through salary records.
                 employee.CreationKey = key;
                 employee.CreationFingerprint = fingerprint;
                 if (request.ProvisionAppAccess) employee.ProvisioningUserId = Guid.NewGuid().ToString();
@@ -69,7 +70,9 @@ public sealed class EmployeesController(IEmployeeService employees, HrmStore sto
             if (employee is null) return NotFound();
             if ((employee.ApplicationUserId != null || employee.ProvisioningUserId != null) && employee.Email != request.Email.Trim().ToLowerInvariant())
                 throw new ApiException(409, "Email cannot be changed after app provisioning has started.");
+            var legacySalary = employee.Salary;
             request.ApplyTo(employee);
+            employee.Salary = legacySalary;
             if (request.ProvisionAppAccess) employee.ProvisioningUserId ??= Guid.NewGuid().ToString();
             await employees.UpdateAsync(employee, ct);
             await tx.CommitAsync(ct);

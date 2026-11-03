@@ -49,6 +49,9 @@ namespace EmployeeApi.Data.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -102,6 +105,10 @@ namespace EmployeeApi.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -113,6 +120,9 @@ namespace EmployeeApi.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique();
 
                     b.ToTable("Organizations");
                 });
@@ -136,6 +146,13 @@ namespace EmployeeApi.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("OrganizationId", "UserId");
+
+                    b.HasIndex("OrganizationId")
+                        .IsUnique()
+                        .HasFilter("Role = 'OrganizationOwner'");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.HasIndex("UserId", "IsActive");
 
@@ -268,6 +285,15 @@ namespace EmployeeApi.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("UserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("EmployeeApi.Models.Organization", b =>
+                {
+                    b.HasOne("EmployeeApi.Models.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("EmployeeApi.Models.OrganizationMembership", b =>

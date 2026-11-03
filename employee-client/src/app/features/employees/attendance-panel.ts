@@ -5,6 +5,7 @@ import { finalize, forkJoin, Observable } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Employee } from '../../core/models/employee.model';
 import { Attendance, HrmService } from '../../core/services/hrm.service';
+import { AuthService } from '../../core/services/auth.service';
 import { readApiError } from '../../core/api-error';
 
 @Component({
@@ -15,7 +16,7 @@ import { readApiError } from '../../core/api-error';
       <label>Employee <select [(ngModel)]="employeeId" (ngModelChange)="selectEmployee()" [disabled]="busy()"><option value="">Select employee</option>@for (e of employees(); track e.id) {<option [value]="e.id">{{e.firstName}} {{e.lastName}}</option>}</select></label>
       <label>From <input type="date" [(ngModel)]="from"></label><label>To <input type="date" [(ngModel)]="to"></label>
       <button (click)="load()" [disabled]="!employeeId || busy()">Load attendance</button>
-      <button (click)="act(hrm.checkIn(employeeId))" [disabled]="!employeeId || busy() || !stateKnown() || !!openPeriod() || !!todayRecord()">Check in now</button>
+      <button (click)="act(hrm.checkIn(employeeId))" [disabled]="!isSelf() || !employeeId || busy() || !stateKnown() || !!openPeriod() || !!todayRecord()">Check in now</button>
     </div>
     <p role="status">{{message()}}</p>
     @if (openPeriod(); as open) {
@@ -23,7 +24,7 @@ import { readApiError } from '../../core/api-error';
         <strong>Currently checked in</strong>
         <p>Work date: {{open.workDate}}. Checked in {{open.checkInUtc | date:'yyyy-MM-dd HH:mm':'UTC'}} UTC.</p>
         <p>This period remains open even if it falls outside the selected history dates.</p>
-        <button (click)="act(hrm.checkOut(employeeId, open.workDate))" [disabled]="busy()">Check out of this period</button>
+        <button (click)="act(hrm.checkOut(employeeId, open.workDate))" [disabled]="busy() || !isSelf()">Check out of this period</button>
         @if (canCorrect()) {<button (click)="edit(open)">Correct this period</button>}
       </section>
     } @else if (todayRecord()) {
@@ -34,7 +35,7 @@ import { readApiError } from '../../core/api-error';
         <span>In: {{row.checkInUtc ? (row.checkInUtc | date:'HH:mm':'UTC') : '—'}} UTC</span>
         <span>Out: {{row.checkOutUtc ? (row.checkOutUtc | date:'yyyy-MM-dd HH:mm':'UTC') : '—'}} UTC</span>
         <span>{{row.notes}}</span>
-        @if (row.checkInUtc && !row.checkOutUtc) { <button (click)="act(hrm.checkOut(employeeId,row.workDate))" [disabled]="busy()">Check out now</button> }
+        @if (row.checkInUtc && !row.checkOutUtc) { <button (click)="act(hrm.checkOut(employeeId,row.workDate))" [disabled]="busy() || !isSelf()">Check out now</button> }
         @if (canCorrect()) { <button (click)="edit(row)">Correct</button> }
       </div>
     }
@@ -55,6 +56,8 @@ import { readApiError } from '../../core/api-error';
 })
 export class AttendancePanel {
   readonly employees = input.required<Employee[]>();
+  protected readonly auth = inject(AuthService);
+  protected isSelf() {return this.employees().find(e => e.id === this.employeeId)?.applicationUserId === this.auth.user()?.id;}
   protected readonly hrm = inject(HrmService);
   protected readonly rows = signal<Attendance[]>([]);
   protected readonly openPeriod = signal<Attendance | null>(null);

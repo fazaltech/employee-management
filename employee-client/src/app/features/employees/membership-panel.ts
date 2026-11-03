@@ -20,8 +20,8 @@ import { readApiError } from '../../core/api-error';
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0">
         <span>{{m.fullName}} ({{m.email}})</span>
         @if (m.emailVerificationPending) { <small>Awaiting email verification via password setup</small> }
-        <select aria-label="Organization role" [(ngModel)]="m.role">@for (r of roles; track r) {<option>{{r}}</option>}</select>
-        <label><input type="checkbox" [(ngModel)]="m.isActive"> Active</label><button (click)="save(m)">Save access</button>
+        <select [disabled]="m.role === 'OrganizationOwner'" aria-label="Organization role" [(ngModel)]="m.role">@for (r of roles; track r) {<option>{{r}}</option>}@if(m.role === 'OrganizationOwner') {<option>OrganizationOwner</option>}</select>
+        <label><input type="checkbox" [disabled]="m.role === 'OrganizationOwner'" [(ngModel)]="m.isActive"> Active</label><button [disabled]="m.role === 'OrganizationOwner'" (click)="save(m)">Save access</button>
         <input aria-label="Account full name" [(ngModel)]="m.fullName" maxlength="160">
         <input type="password" aria-label="New password, leave blank to keep current password" autocomplete="new-password" [(ngModel)]="passwords[m.userId]" placeholder="New password (optional)" maxlength="128">
         <button (click)="saveAccount(m)">Save account</button>
@@ -34,7 +34,7 @@ export class MembershipPanel {
   private readonly hrm = inject(HrmService);
   readonly changed = output<void>();
   protected readonly members = signal<Membership[]>([]); protected readonly message = signal('');
-  protected readonly roles = ['OrganizationOwner', 'HRAdmin', 'Manager', 'Employee'];
+  protected readonly roles = ['HRAdmin', 'Manager', 'Employee'];
   protected name = ''; protected email = ''; protected role = 'Employee'; protected password = '';
   protected passwords: Record<string, string> = {};
   constructor() { effect(() => { this.hrm.organization(); this.load(); }); }

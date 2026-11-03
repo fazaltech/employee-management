@@ -27,7 +27,7 @@ public sealed class UpdateAccountRequest
 public sealed class AccountsController(ApplicationDbContext db, UserManager<ApplicationUser> users,
     AccountAdministrationService accounts, TenantContext tenant, TenantWriteLock writeLock) : ControllerBase
 {
-    [HttpPost("api/organizations/{organizationId}/accounts"), Authorize(Policy = "OrganizationOwner")]
+    [HttpPost("api/organizations/{organizationId}/accounts"), Authorize(Policy = "HRAdmin")]
     public Task<IActionResult> Create(string organizationId, CreateAccountRequest request, CancellationToken ct) => CreateCore(organizationId, request, false, ct);
 
     [HttpPost("api/platform/organizations/{organizationId}/owners"), Authorize(Policy = "PlatformAdmin")]
@@ -37,6 +37,7 @@ public sealed class AccountsController(ApplicationDbContext db, UserManager<Appl
     {
         if (!OrganizationRoles.All.Contains(request.Role)) throw new ApiException(403, "Only organization roles may be assigned through this endpoint.");
         var role = platform ? OrganizationRoles.Owner : request.Role;
+        if (role == OrganizationRoles.Owner) throw new ApiException(409, "Create the owner together with the organization. Each organization already has exactly one owner.");
         if (AccountAdministrationService.Rank(role) == 0 || (!platform && AccountAdministrationService.Rank(role) > AccountAdministrationService.Rank(tenant.Role)))
             throw new ApiException(403, "The requested role is above your authority or is not an organization role.");
         await using var tx = platform ? await db.Database.BeginTransactionAsync(ct) : await writeLock.Acquire(ct);
@@ -55,7 +56,7 @@ public sealed class AccountsController(ApplicationDbContext db, UserManager<Appl
         return StatusCode(201, new { user.Id, user.FullName, user.Email, OrganizationId = organizationId, Role = role });
     }
 
-    [HttpPut("api/organizations/{organizationId}/accounts/{userId}"), Authorize(Policy = "OrganizationOwner")]
+    [HttpPut("api/organizations/{organizationId}/accounts/{userId}"), Authorize(Policy = "HRAdmin")]
     public Task<IActionResult> Update(string organizationId, string userId, UpdateAccountRequest request, CancellationToken ct) => UpdateCore(organizationId, userId, request, false, ct);
 
     [HttpPut("api/platform/organizations/{organizationId}/owners/{userId}"), Authorize(Policy = "PlatformAdmin")]

@@ -16,7 +16,7 @@ public sealed class EmployeeRequest : IValidatableObject
     [Required, EmailAddress, StringLength(150)]
     public string Email { get; init; } = string.Empty;
 
-    [Required, StringLength(100)]
+    [StringLength(100)]
     public string DepartmentId { get; init; } = string.Empty;
 
     [Required, StringLength(100)]

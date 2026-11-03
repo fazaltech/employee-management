@@ -13,6 +13,9 @@ export class HrmService {
   private readonly http = inject(HttpClient);
   readonly organization = signal<Organization | null>(null);
   get url() { return `${environment.apiUrl}/organizations/${this.organization()?.id}`; }
+  createPlatformOrganization(name: string, fullName: string, email: string, password?: string) {return this.http.post(`${environment.apiUrl}/organizations`, {name, owner: {fullName, email, role: 'OrganizationOwner', ...(password ? {password} : {})}});}
+  platformRename(o: Organization) {return this.http.put(`${environment.apiUrl}/organizations/platform/${o.id}`, {name: o.name});}
+  setStatus(id: string, status: string) {return this.http.put(`${environment.apiUrl}/organizations/${id}/status`, {status});}
   organizations() { return this.http.get<Organization[]>(`${environment.apiUrl}/organizations`); }
   createOrganization(name: string) { return this.http.post<Organization>(`${environment.apiUrl}/organizations`, { name }); }
   renameOrganization(name: string) { return this.http.put<void>(this.url, { name }); }

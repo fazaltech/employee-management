@@ -51,7 +51,9 @@ public sealed class AttendanceController(HrmStore store, IEmployeeService employ
     public async Task<IActionResult> CheckIn(CheckInRequest request, CancellationToken ct)
     {
         await using var tx = await writeLock.Acquire(ct);
-        var employeeId = (await RequireEmployee(request.EmployeeId, ct, true)).Id;
+        var employee = await RequireEmployee(request.EmployeeId, ct, true);
+        if (employee.ApplicationUserId != tenant.UserId) throw new ApiException(403, "Check-in is personal. Use audited corrections to manage attendance.");
+        var employeeId = employee.Id;
         var now = DateTime.UtcNow;
         var open = await store.Attendance.Find(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == employeeId && x.CheckInUtc != null && x.CheckOutUtc == null)
             .SortBy(x => x.CheckInUtc).FirstOrDefaultAsync(ct);
@@ -76,7 +78,9 @@ public sealed class AttendanceController(HrmStore store, IEmployeeService employ
     {
         ParseDate(workDate);
         await using var tx = await writeLock.Acquire(ct);
-        employeeId = (await RequireEmployee(employeeId, ct, true)).Id;
+        var employee = await RequireEmployee(employeeId, ct, true);
+        if (employee.ApplicationUserId != tenant.UserId) throw new ApiException(403, "Check-out is personal. Use audited corrections to manage attendance.");
+        employeeId = employee.Id;
         var now = DateTime.UtcNow;
         var row = await store.Attendance.FindOneAndUpdateAsync(x => x.OrganizationId == tenant.OrganizationId && x.EmployeeId == employeeId && x.WorkDate == workDate && x.CheckInUtc != null && x.CheckInUtc <= now && x.CheckOutUtc == null,
             Builders<Attendance>.Update.Set(x => x.CheckOutUtc, now).Set(x => x.UpdatedAtUtc, now).Set(x => x.UpdatedByUserId, tenant.UserId),

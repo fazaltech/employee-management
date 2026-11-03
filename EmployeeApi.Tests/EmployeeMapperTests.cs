@@ -13,7 +13,7 @@ public sealed class EmployeeMapperTests
             FirstName = " Alex ",
             LastName = " Morgan ",
             Email = " ALEX@EXAMPLE.COM ",
-            Department = " Engineering ",
+            DepartmentId = " 507f1f77bcf86cd799439011 ",
             JobTitle = " Developer ",
             Salary = 85000m,
             HireDate = new DateTime(2026, 1, 15),
@@ -26,7 +26,7 @@ public sealed class EmployeeMapperTests
         Assert.Equal("Alex", employee.FirstName);
         Assert.Equal("Morgan", employee.LastName);
         Assert.Equal("alex@example.com", employee.Email);
-        Assert.Equal("Engineering", employee.Department);
+        Assert.Equal("507f1f77bcf86cd799439011", employee.DepartmentId);
         Assert.Equal(DateTimeKind.Utc, employee.HireDate.Kind);
         Assert.NotEmpty(employee.Id);
         Assert.NotEqual(default, employee.CreatedAtUtc);

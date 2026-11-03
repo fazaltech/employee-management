@@ -2,6 +2,10 @@
 
 A multi-tenant EMS/HRM application with ASP.NET Core 10, ASP.NET Core Identity, EF Core/SQLite, MongoDB, JWT authentication, and Angular 22.
 
+## EMS/HRM upgrade
+
+See [HRM-SETUP.md](HRM-SETUP.md) for current ownership rules, MongoDB HR workflows, configuration, migrations, password setup, backup/reset commands, and verification. This guide supersedes older setup notes. Development seeds `platform@peopleops.com` from User Secrets/environment only and requires a password change on first login.
+
 ## Architecture
 
 - `EmployeeApi` — .NET 10 Web API.
@@ -19,7 +23,7 @@ A multi-tenant EMS/HRM application with ASP.NET Core 10, ASP.NET Core Identity, 
 
 ## Database and platform setup
 
-See [DATABASE-SETUP.md](DATABASE-SETUP.md) before starting the updated API. Startup applies Identity migrations, validates the platform account, initializes Mongo collections/indexes, and seeds the PlatformAdmin role/account. The designated platform account is `admin@peopleops.biz`; Micheal retains his existing organization ownership. No ownership transfer is needed. New installations require `PLATFORM_ADMIN_INITIAL_PASSWORD` from a secure source; matching existing accounts keep their password.
+See [DATABASE-SETUP.md](DATABASE-SETUP.md) before starting the updated API. Startup applies Identity migrations, validates the platform account, initializes Mongo collections/indexes, and seeds the PlatformAdmin role/account. The development platform account is `platform@peopleops.com`; existing organization ownership is preserved when compatible with the new constraints. New installations require `PLATFORM_ADMIN_INITIAL_PASSWORD` from a secure source; matching existing accounts keep their password.
 
 ## Run locally
 
@@ -49,7 +53,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200`, create an account, and then manage employees. A ready-to-run API request collection is in `EmployeeApi/EmployeeApi.http`.
+Open `http://localhost:4200`, sign in as the seeded development platform administrator, change the initial password, and create an organization with its owner. A ready-to-run API request collection is in `EmployeeApi/EmployeeApi.http`.
 
 ## Dashboard
 
@@ -59,7 +63,7 @@ The home page is now `/dashboard`, with role-aware metrics, charts, employee sea
 
 See [MULTITENANCY.md](MULTITENANCY.md) for the changed files, role rules, API routes, retry behavior, migration instructions, SMTP configuration, and limitations.
 
-Sign in, create or select an organization, add departments, and manage its employees and attendance. The creator receives an OrganizationOwner membership. Provision employee app access optionally, then email a secure password setup link. Owners manage roles in the Organization access panel. Managers see their own records and direct reports; employees see only themselves.
+The platform administrator creates each organization with one owner. Organization users then sign in to their assigned workspace. Provision employee app access optionally, then email a secure password setup link. Owners manage roles in the Organization access panel. Managers see their own records and direct reports; employees see only themselves.
 
 Existing MongoDB employees remain preserved but hidden until explicitly assigned to an organization using the documented migration script. Do not assume upgrading automatically assigns old data. The API retains `/api/employees` aliases but requires an authorized `X-Organization-Id`; new clients use `/api/organizations/{id}/employees`.
 
@@ -76,7 +80,7 @@ $env:MongoDb__DatabaseName = "TestDB"
 $env:ConnectionStrings__DefaultConnection = "Data Source=identity.db"
 ```
 
-The checked-in JWT key is only for local development and must be replaced before deployment.
+Supply the JWT key through User Secrets or environment configuration; the example settings contain no key.
 
 ## EF Core migrations
 
@@ -98,4 +102,4 @@ cd employee-client
 npm run build
 ```
 
-Use a supported Node version listed above. No tests were added or run for the multi-tenant implementation, as requested.
+Use a supported Node version listed above. Backend tests, Angular checks, and live API verification are described in HRM-SETUP.md.

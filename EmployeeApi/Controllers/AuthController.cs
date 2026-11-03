@@ -80,6 +80,19 @@ public sealed class AuthController(
         return Ok(await tokenService.CreateAsync(user));
     }
 
+    public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+    [HttpPost("change-password"), Authorize]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+        if (request.NewPassword == request.CurrentPassword) return BadRequest(new { detail = "Choose a different password." });
+        AccountAdministrationService.EnsureSucceeded(await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword));
+        user.MustChangePassword = false;
+        AccountAdministrationService.EnsureSucceeded(await userManager.UpdateAsync(user));
+        return Ok(await tokenService.CreateAsync(user));
+    }
+
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]

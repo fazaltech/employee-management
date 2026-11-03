@@ -6,14 +6,15 @@ namespace EmployeeApi.Data;
 
 /// <summary>Creates platform credentials only; never creates organizations or memberships.</summary>
 public sealed class PlatformAdminSeeder(ApplicationDbContext db, UserManager<ApplicationUser> users,
-    RoleManager<IdentityRole> roles, IConfiguration configuration)
+    RoleManager<IdentityRole> roles, IConfiguration configuration, IHostEnvironment environment)
 {
-    public const string UserId = "87534509-ce34-4f36-be3d-ebac2a367859";
-    public const string Email = "admin@peopleops.biz";
+    public const string UserId = "0bef329f-14d4-43c3-94cf-b8b7878fde81";
+    public const string Email = "platform@peopleops.com";
     public const string Role = "PlatformAdmin";
 
     public async Task ValidateAsync(CancellationToken ct)
     {
+        if (!environment.IsDevelopment()) return;
         var existing = await InspectAsync(ct);
         if (existing is not null) return; // Existing credentials are never read, validated, or reset.
         var candidate = NewUser();
@@ -28,6 +29,7 @@ public sealed class PlatformAdminSeeder(ApplicationDbContext db, UserManager<App
 
     public async Task SeedAsync(CancellationToken ct)
     {
+        if (!environment.IsDevelopment()) return;
         // The SQLite provider begins an immediate transaction, serializing concurrent seeders.
         // Roles, new users, and role assignment commit together or are rolled back together.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -92,7 +94,7 @@ public sealed class PlatformAdminSeeder(ApplicationDbContext db, UserManager<App
 
     private static ApplicationUser NewUser() => new()
     {
-        Id = UserId, Email = Email, UserName = Email, FullName = "PeopleOps Administrator", CreatedAtUtc = DateTime.UtcNow
+        Id = UserId, Email = Email, UserName = Email, FullName = "PlatformAdmin", MustChangePassword = true, CreatedAtUtc = DateTime.UtcNow
         // EmailConfirmed remains false; the sample-data configuration controls confirmation requirements.
     };
 

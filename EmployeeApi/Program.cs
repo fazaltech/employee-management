@@ -51,7 +51,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=identity.db"));
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
@@ -61,7 +61,7 @@ builder.Services
         options.Password.RequiredLength = 8;
         options.Password.RequireDigit = true;
         options.Password.RequireLowercase = true;
-        options.Password.RequireUppercase = true;
+        options.Password.RequireUppercase = !builder.Environment.IsDevelopment();
         options.Password.RequireNonAlphanumeric = false;
     })
     .AddRoles<IdentityRole>()
@@ -89,7 +89,7 @@ builder.Services
             {
                 var users = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
                 var user = await users.GetUserAsync(context.Principal!);
-                if (user is null || (builder.Configuration.GetValue("Authentication:RequireConfirmedEmail", true) && !user.EmailConfirmed))
+                if (user is null || context.Principal!.FindFirst("security_stamp")?.Value != user.SecurityStamp || (builder.Configuration.GetValue("Authentication:RequireConfirmedEmail", true) && !user.EmailConfirmed))
                     context.Fail("Account is unavailable or email confirmation is required.");
             }
         };
@@ -130,7 +130,6 @@ builder.Services.AddScoped<PasswordSetupService>();
 builder.Services.AddScoped<AccountAdministrationService>();
 builder.Services.AddScoped<PlatformAdminSeeder>();
 builder.Services.AddScoped<DatabaseInitializer>();
-builder.Services.AddScoped<PlatformOwnershipTransfer>();
 builder.Services.AddScoped<EmployeeProvisioningService>();
 builder.Services.AddRateLimiter(options =>
 {
@@ -145,7 +144,7 @@ builder.Services
     .AddOptions<MongoDbSettings>()
     .Bind(builder.Configuration.GetSection(MongoDbSettings.SectionName))
     .ValidateDataAnnotations()
-    .Validate(settings => new[] { settings.EmployeesCollectionName, settings.DepartmentsCollectionName, settings.AttendanceCollectionName }.Distinct(StringComparer.Ordinal).Count() == 3,
+    .Validate(settings => new[] { settings.EmployeesCollectionName, settings.DepartmentsCollectionName, settings.AttendanceCollectionName, "Organizations", "Shifts", "ShiftAssignments", "Leaves", "Salaries", "Payroll", "Payslips" }.Distinct(StringComparer.Ordinal).Count() == 10,
         "MongoDB employee, department and attendance collection names must be distinct.")
     .ValidateOnStart();
 
@@ -172,11 +171,9 @@ var app = builder.Build();
 try
 {
     using var scope = app.Services.CreateScope();
-    if (args.Contains("--transfer-platform-ownership", StringComparer.Ordinal))
+    if (args.Contains("--reset-development-databases", StringComparer.Ordinal))
     {
-        await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync(app.Lifetime.ApplicationStopping);
-        await scope.ServiceProvider.GetRequiredService<PlatformOwnershipTransfer>().TransferAsync(app.Lifetime.ApplicationStopping);
-        app.Logger.LogInformation("Explicit ownership transfer completed. Run --initialize-databases to finish platform setup.");
+        await DevelopmentDatabaseReset.Run(app.Environment, builder.Configuration, scope.ServiceProvider, args, app.Lifetime.ApplicationStopping);
         await app.DisposeAsync();
         return;
     }
@@ -193,6 +190,8 @@ catch (Exception exception)
 {
     // Database exceptions can contain connection strings, document contents, or credentials.
     app.Logger.LogCritical("Database initialization failed ({ExceptionType}). Check database availability, migration/index conflicts and configured permissions. Existing data is not recreated automatically.", exception.GetType().Name);
+    if (exception is MongoCommandException mongoError)
+        app.Logger.LogCritical("MongoDB command failure code: {Code}; name: {CodeName}.", mongoError.Code, mongoError.CodeName);
     Environment.ExitCode = 1;
     await app.DisposeAsync();
     return;
@@ -219,6 +218,19 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AngularClient");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true && context.Request.Path != "/api/auth/change-password" && context.Request.Path != "/api/auth/me" && context.Request.Path != "/api/auth/account-options") {
+        var users = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await users.GetUserAsync(context.User);
+        if (user?.MustChangePassword == true) {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsJsonAsync(new { detail = "Change your initial password before accessing the application." });
+            return;
+        }
+    }
+    await next();
+});
 app.UseAuthorization();
 
 app.MapControllers();

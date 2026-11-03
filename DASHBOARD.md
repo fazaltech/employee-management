@@ -1,3 +1,5 @@
+> Current EMS/HRM setup and breaking changes: [HRM-SETUP.md](HRM-SETUP.md). The historical notes below are superseded where they conflict.
+
 # EMS/HRM dashboard
 
 The Angular application's default route and post-login destination are now `/dashboard`. The existing Angular 22 standalone-component architecture, router, JWT authentication, HttpClient services, SCSS tokens, Identity/SQLite and MongoDB stores are retained. No UI, icon, chart, or other package dependency was added. The project had no icon/chart library; a shared SVG icon component and responsive CSS charts provide the visuals, with exact chart values available as text or an accessible table.

@@ -12,6 +12,18 @@ public sealed class HrmStore(IMongoClient client, IOptions<MongoDbSettings> opti
     public IMongoCollection<Employee> Employees => database.GetCollection<Employee>(options.Value.EmployeesCollectionName);
     public IMongoCollection<Department> Departments => database.GetCollection<Department>(options.Value.DepartmentsCollectionName);
     public IMongoCollection<Attendance> Attendance => database.GetCollection<Attendance>(options.Value.AttendanceCollectionName);
+    public IMongoCollection<OrganizationProfile> Organizations => database.GetCollection<OrganizationProfile>("Organizations");
+    public IMongoCollection<Shift> Shifts => database.GetCollection<Shift>("Shifts");
+    public IMongoCollection<ShiftAssignment> ShiftAssignments => database.GetCollection<ShiftAssignment>("ShiftAssignments");
+    public IMongoCollection<LeaveRequest> Leaves => database.GetCollection<LeaveRequest>("Leaves");
+    public IMongoCollection<SalaryRecord> Salaries => database.GetCollection<SalaryRecord>("Salaries");
+    public IMongoCollection<Payroll> Payroll => database.GetCollection<Payroll>("Payroll");
+    public IMongoCollection<Payslip> Payslips => database.GetCollection<Payslip>("Payslips");
+    public string[] CollectionNames => [options.Value.EmployeesCollectionName, options.Value.DepartmentsCollectionName, options.Value.AttendanceCollectionName, "Organizations", "Shifts", "ShiftAssignments", "Leaves", "Salaries", "Payroll", "Payslips"];
+    public async Task ClearDevelopmentCollections(CancellationToken ct)
+    {
+        foreach (var name in CollectionNames) await database.DropCollectionAsync(name, ct);
+    }
     private readonly SemaphoreSlim gate = new(1);
     private bool initialized;
     public async Task EnsureIndexes(CancellationToken ct)
@@ -23,6 +35,16 @@ public sealed class HrmStore(IMongoClient client, IOptions<MongoDbSettings> opti
             await EnsureCollection(options.Value.EmployeesCollectionName, ct);
             await EnsureCollection(options.Value.DepartmentsCollectionName, ct);
             await EnsureCollection(options.Value.AttendanceCollectionName, ct);
+            foreach (var name in CollectionNames.Skip(3)) {
+                await EnsureCollection(name, ct);
+                if (name != "Organizations") await database.GetCollection<BsonDocument>(name).Indexes.CreateOneAsync(new CreateIndexModel<BsonDocument>(Builders<BsonDocument>.IndexKeys.Ascending("OrganizationId")), cancellationToken: ct);
+            }
+            await Organizations.Indexes.CreateOneAsync(new CreateIndexModel<OrganizationProfile>(Builders<OrganizationProfile>.IndexKeys.Ascending(x => x.OrganizationId), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
+            await Salaries.Indexes.CreateOneAsync(new CreateIndexModel<SalaryRecord>(Builders<SalaryRecord>.IndexKeys.Ascending(x => x.OrganizationId).Ascending(x => x.EmployeeId).Ascending(x => x.EffectiveFrom), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
+            await Payroll.Indexes.CreateOneAsync(new CreateIndexModel<Payroll>(Builders<Payroll>.IndexKeys.Ascending(x => x.OrganizationId).Ascending(x => x.Period), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
+            await Payslips.Indexes.CreateOneAsync(new CreateIndexModel<Payslip>(Builders<Payslip>.IndexKeys.Ascending(x => x.OrganizationId).Ascending(x => x.PayrollId).Ascending(x => x.EmployeeId), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
+            await Leaves.Indexes.CreateOneAsync(new CreateIndexModel<LeaveRequest>(Builders<LeaveRequest>.IndexKeys.Ascending(x => x.OrganizationId).Ascending(x => x.EmployeeId).Ascending(x => x.Status)), cancellationToken: ct);
+            await ShiftAssignments.Indexes.CreateOneAsync(new CreateIndexModel<ShiftAssignment>(Builders<ShiftAssignment>.IndexKeys.Ascending(x => x.OrganizationId).Ascending(x => x.EmployeeId).Ascending(x => x.EffectiveFrom)), cancellationToken: ct);
             var e = Builders<Employee>.IndexKeys;
             var assigned = Builders<Employee>.Filter.Gt(x => x.OrganizationId, "");
             await Employees.Indexes.CreateManyAsync([

@@ -1,3 +1,5 @@
+> Current EMS/HRM setup and breaking changes: [HRM-SETUP.md](HRM-SETUP.md). The historical notes below are superseded where they conflict.
+
 # Administrator passwords and email configuration
 
 Sample-data defaults in `EmployeeApi/appsettings.json`:

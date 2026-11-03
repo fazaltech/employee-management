@@ -13,3 +13,6 @@
 .DS_Store
 EmployeeApi/appsettings.json
 EmployeeApi/appsettings.Development.json
+
+# Local database backups and backup tooling (sensitive data)
+.local-backups/

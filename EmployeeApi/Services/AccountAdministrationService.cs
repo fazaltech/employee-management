@@ -11,7 +11,7 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, UserMa
 {
     public static int Rank(string role) => role switch
     {
-        OrganizationRoles.Owner => 4, OrganizationRoles.HR => 3,
+        "PlatformAdmin" => 5, OrganizationRoles.Owner => 4, OrganizationRoles.HR => 3,
         OrganizationRoles.Manager => 2, OrganizationRoles.Employee => 1, _ => 0
     };
 

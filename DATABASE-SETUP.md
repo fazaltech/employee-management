@@ -1,3 +1,5 @@
+> Current EMS/HRM setup and breaking changes: [HRM-SETUP.md](HRM-SETUP.md). The historical notes below are superseded where they conflict.
+
 # Database initialization and platform administrator
 
 The app remains ASP.NET Core 10 with ASP.NET Core Identity / EF Core 10.0.11 / SQLite and MongoDB.Driver 3.11.1. Existing EF migrations and connection settings are reused; no new schema migration is necessary for the seeder.

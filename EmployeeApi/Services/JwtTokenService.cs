@@ -25,7 +25,8 @@ public sealed class JwtTokenService(
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(ClaimTypes.NameIdentifier, user.Id),
-            new(ClaimTypes.Name, user.FullName)
+            new(ClaimTypes.Name, user.FullName),
+            new("security_stamp", user.SecurityStamp ?? "")
         };
 
         var roles = await userManager.GetRolesAsync(user);
@@ -45,6 +46,6 @@ public sealed class JwtTokenService(
         return new AuthResponse(
             new JwtSecurityTokenHandler().WriteToken(token),
             expiresAtUtc,
-            new UserResponse(user.Id, user.FullName, user.Email ?? string.Empty));
+            new UserResponse(user.Id, user.FullName, user.Email ?? string.Empty, user.MustChangePassword));
     }
 }

@@ -13,6 +13,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<Organization>().HasIndex(x => x.OwnerUserId).IsUnique();
+        builder.Entity<Organization>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<OrganizationMembership>().HasIndex(x => x.OrganizationId).IsUnique().HasFilter("Role = 'OrganizationOwner'");
+        builder.Entity<OrganizationMembership>().HasIndex(x => x.UserId).IsUnique();
         builder.Entity<Organization>().Property(x => x.Name).HasMaxLength(160);
         builder.Entity<OrganizationMembership>().HasKey(x => new { x.OrganizationId, x.UserId });
         builder.Entity<OrganizationMembership>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId);

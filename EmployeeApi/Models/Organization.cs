@@ -12,6 +12,7 @@ public static class OrganizationRoles
 public sealed class Organization
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string OwnerUserId { get; set; } = "";
     public string Name { get; set; } = "";
     public string Status { get; set; } = "Active";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

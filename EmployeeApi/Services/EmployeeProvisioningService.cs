@@ -32,6 +32,7 @@ public sealed class EmployeeProvisioningService(HrmStore store, TenantContext te
         var user = await users.FindByEmailAsync(employee.Email);
         if (user != null)
         {
+            if (await db.OrganizationMemberships.AnyAsync(x => x.UserId == user.Id && (x.Role == OrganizationRoles.Owner || x.OrganizationId != tenant.OrganizationId), ct)) throw new ApiException(403, "Owners cannot be employee records and accounts cannot belong to multiple organizations.");
             if (await users.IsInRoleAsync(user, "PlatformAdmin")) throw new ApiException(403, "Platform administrator accounts cannot be provisioned through organization employee flows.");
             if (password != null && (updatePassword || user.Id != employee.ProvisioningUserId))
             {
