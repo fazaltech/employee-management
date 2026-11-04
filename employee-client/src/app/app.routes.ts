@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  { path: 'support', canActivate: [authGuard], loadComponent: () => import('./features/support/support-page').then(c => c.SupportPage), title: 'Support | PeopleOps' },
   ...['leaves', 'shifts', 'payroll'].map(path => ({path, canActivate: [authGuard], loadComponent: () => import('./features/hr/hr-page').then(c => c.HrPage), data: {view: path}, title: 'HR workspace | PeopleOps'})),
   {path: 'change-password', canActivate: [authGuard], loadComponent: () => import('./features/auth/change-password').then(c => c.ChangePassword), title: 'Change password | PeopleOps'},
   { path: 'dashboard', canActivate: [authGuard], loadComponent: () => import('./features/dashboard/dashboard').then(c => c.Dashboard), title: 'Dashboard | PeopleOps' },

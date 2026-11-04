@@ -103,3 +103,13 @@ npm run build
 ```
 
 Use a supported Node version listed above. Backend tests, Angular checks, and live API verification are described in HRM-SETUP.md.
+
+## Support chat
+
+Open **Support chat** in the sidebar as an active OrganizationOwner or Manager. Each user has a private conversation with platform support; Employee and HRAdmin accounts cannot connect or use chat methods. PlatformAdmin sees **Support inbox**, with conversations across organizations, live updates, new-message indicators while the inbox is open, and separate drafts when switching conversations.
+
+The authenticated SignalR endpoint is `/hubs/support`. Its methods are `ListConversations`, `GetMessages(conversationId, before)` (50 messages per page), and `SendMessage(conversationId, text)` (1–4,000 characters). `SupportChanged` tells connected clients to reload authorized content. Account, security stamp, role, and active membership are checked again for each invocation. Connections close when the JWT expires; sign in again to obtain a new token.
+
+The `SupportChat` EF migration adds conversation and message tables to SQLite and runs automatically at API startup. No new appsettings values are needed. Run `npm install` in `employee-client` to install the SignalR client. The client derives the hub address from `environment.apiUrl`; production proxies must forward `/hubs/support` and support WebSocket upgrades. Configure the API CORS origin for your deployed frontend. The current real-time transport runs on one API instance; multiple API instances need a SignalR backplane or managed SignalR service.
+
+Verify with `dotnet test EmployeeApi.Tests` and `npm test -- --watch=false` (from `employee-client`). For a manual end-to-end check, open separate admin, owner, and manager browser sessions: send from both users, reply from the admin inbox, reload to confirm history, and confirm an employee cannot connect to `/hubs/support`.

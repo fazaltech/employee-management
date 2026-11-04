@@ -1,0 +1,41 @@
+<header><h1>{{ workspace.platform() ? 'Support inbox' : 'Support chat' }}</h1>
+  <p>{{ workspace.platform() ? 'Help organization owners and managers across all organizations.' : 'Send a private message to platform support.' }}</p></header>
+@if (workspace.loading()) { <p>Loading your workspace…</p> }
+@else if (!allowed()) { <p role="alert">Support chat is available to organization owners and managers only.</p> }
+@else {
+  <div class="connection" role="status">{{ status() }} @if (!connected() && status() === 'Disconnected') { <button (click)="reconnect()">Reconnect</button> }</div>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  <div class="chat-layout" [class.single]="!workspace.platform()">
+    @if (workspace.platform()) {
+      <aside aria-label="Support conversations">
+        <h2>Conversations <span>{{ threads().length }}</span></h2>
+        @for (thread of threads(); track thread.id) {
+          <button class="thread" [class.active]="selected() === thread.id" (click)="select(thread.id)">
+            <strong>{{ thread.userName }}</strong><span>{{ thread.organizationName }}</span>
+            <small>{{ thread.updatedAtUtc | date:'short' }} @if (unread().has(thread.id)) { <b> • New</b> }</small>
+          </button>
+        } @empty { <p>No support conversations yet.</p> }
+      </aside>
+    }
+    <section class="conversation" aria-label="Selected conversation">
+      @if (current(); as thread) {
+        <h2>{{ workspace.platform() ? thread.userName + ' · ' + thread.organizationName : 'Platform support' }}</h2>
+        <div class="messages" role="log" aria-live="polite" aria-label="Messages">
+          @if (hasOlder()) { <button (click)="older()" [disabled]="loadingOlder() || !connected()">{{ loadingOlder() ? 'Loading…' : 'Load earlier messages' }}</button> }
+          @for (message of messages(); track message.id) {
+            <article [class.mine]="message.senderId === auth.user()?.id">
+              <strong>{{ message.fromAdmin ? 'Support · ' : '' }}{{ message.senderName }}</strong>
+              <p>{{ message.text }}</p><time>{{ message.sentAtUtc | date:'short' }}</time>
+            </article>
+          } @empty { <p class="empty">Start the conversation. Your messages will be saved here.</p> }
+          <div id="support-bottom"></div>
+        </div>
+        <form (ngSubmit)="send()">
+          <label for="support-message">Message</label>
+          <textarea id="support-message" name="message" [(ngModel)]="draft" maxlength="4000" rows="3" placeholder="How can we help?" [disabled]="!connected()"></textarea>
+          <div class="compose-footer"><small>{{ draft.length }} / 4000</small><button type="submit" [disabled]="!connected() || busy() || !draft.trim()">{{ busy() ? 'Sending…' : 'Send message' }}</button></div>
+        </form>
+      } @else { <p class="empty">{{ connected() ? 'Select a conversation to reply.' : 'Connect to load your conversations.' }}</p> }
+    </section>
+  </div>
+}

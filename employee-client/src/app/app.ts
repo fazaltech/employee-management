@@ -33,6 +33,8 @@ export class App {
     if (scoped) items.push({label: 'Attendance', path: '/attendance', icon: 'clock'}, {label: 'Leaves', path: '/leaves', icon: 'calendar'}, {label: 'Salaries / Payroll', path: '/payroll', icon: 'chart'}, {label: 'Shifts', path: '/shifts', icon: 'clock'});
     if (scoped && this.workspace.hrm.organization()?.role !== 'Employee') items.push({label: 'Reports', path: '/reports', icon: 'chart'});
     items.push({label: 'Settings', path: '/settings', icon: 'settings'});
+    if (this.workspace.platform() || ['OrganizationOwner', 'Manager'].includes(this.workspace.hrm.organization()?.role ?? ''))
+      items.push({label: this.workspace.platform() ? 'Support inbox' : 'Support chat', path: '/support', icon: 'people'});
     return items;
   });
   constructor() {

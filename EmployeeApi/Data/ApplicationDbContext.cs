@@ -9,10 +9,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<SupportConversation> SupportConversations => Set<SupportConversation>();
+    public DbSet<SupportMessage> SupportMessages => Set<SupportMessage>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<SupportConversation>().HasIndex(x => new { x.OrganizationId, x.UserId }).IsUnique();
+        builder.Entity<SupportConversation>().HasOne<Organization>().WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SupportConversation>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SupportMessage>().HasOne<SupportConversation>().WithMany().HasForeignKey(x => x.ConversationId);
+        builder.Entity<SupportMessage>().HasIndex(x => new { x.ConversationId, x.Id });
+        builder.Entity<SupportMessage>().Property(x => x.Text).HasMaxLength(4000);
         builder.Entity<Organization>().HasIndex(x => x.OwnerUserId).IsUnique();
         builder.Entity<Organization>().HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<OrganizationMembership>().HasIndex(x => x.OrganizationId).IsUnique().HasFilter("Role = 'OrganizationOwner'");

@@ -16,3 +16,4 @@ EmployeeApi/appsettings.Development.json
 
 # Local database backups and backup tooling (sensitive data)
 .local-backups/
+/EmployeeApi/Data/Migrations

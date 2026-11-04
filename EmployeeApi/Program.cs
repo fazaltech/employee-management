@@ -4,6 +4,7 @@ using EmployeeApi.Data;
 using EmployeeApi.Infrastructure;
 using EmployeeApi.Models;
 using EmployeeApi.Services;
+using EmployeeApi.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +17,8 @@ using MongoDB.Driver;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR(options => options.MaximumReceiveMessageSize = 32 * 1024);
+builder.Services.AddScoped<SupportChatService>();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -85,6 +88,13 @@ builder.Services
     {
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/hubs/support") &&
+                    context.Request.Query.TryGetValue("access_token", out var token))
+                    context.Token = token;
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var users = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
@@ -234,6 +244,7 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<SupportHub>("/hubs/support", options => options.CloseOnAuthenticationExpiration = true);
 app.MapGet("/", () => Results.Ok(new
 {
     service = "Employee API",
